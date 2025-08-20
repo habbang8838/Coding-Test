@@ -1,0 +1,137 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import dayjs, { Dayjs } from "dayjs";
+import { useRouter } from "next/navigation";
+import { getExam } from "@/lib/api/exams";
+
+function useCountdown(target: Dayjs | null, intervalMs = 1000) {
+  const calc = (t: Dayjs | null) => (t ? Math.max(0, t.diff(dayjs(), "second")) : null);
+  const [remainSec, setRemainSec] = useState<number | null>(calc(target));
+  useEffect(() => {
+    if (!target) { setRemainSec(null); return; }
+    setRemainSec(calc(target));
+    const id = setInterval(() => setRemainSec(calc(target)), intervalMs);
+    return () => clearInterval(id);
+  }, [target ? target.valueOf() : null, intervalMs]);
+  return remainSec;
+}
+
+function formatRemain(sec: number | null) {
+  if (sec === null) return "--:--:--";
+  const h = String(Math.floor(sec / 3600)).padStart(2, "0");
+  const m = String(Math.floor((sec % 3600) / 60)).padStart(2, "0");
+  const s = String(sec % 60).padStart(2, "0");
+  return `${h}:${m}:${s}`;
+}
+
+export default function Lobby({ params }: { params: { examId: string } }) {
+  const examId = params.examId;
+  const router = useRouter();
+
+  const [exam, setExam] = useState<any>(null);
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    (async () => setExam(await getExam(examId)))();
+  }, [examId]);
+
+  const startAt = useMemo<Dayjs | null>(() => (exam ? dayjs(exam.startsAtISO) : null), [exam]);
+  const openAt  = useMemo<Dayjs | null>(() => (exam ? dayjs(exam.startsAtISO).subtract(exam.lobbyOpenOffsetMin ?? 30, "minute") : null), [exam]);
+  const closeAt = useMemo<Dayjs | null>(() => (exam ? dayjs(exam.startsAtISO).subtract(exam.lobbyCloseOffsetMin ?? 10, "minute") : null), [exam]);
+
+  const toStartSec = useCountdown(startAt);
+  const toOpenSec  = useCountdown(openAt);
+  const toCloseSec = useCountdown(closeAt);
+
+  // now >= openAt && now < closeAt
+  const inWindow =
+    !!openAt && !!closeAt && !dayjs().isBefore(openAt) && dayjs().isBefore(closeAt);
+
+  async function enterRoom() {
+  if (!inWindow || loading) return;
+  try {
+    setLoading(true);
+    const res = await fetch(`/api/exams/${examId}/admit`, { method: "POST" });
+    if (!res.ok) throw new Error(await res.text());
+    // ✅ 다른 경로로 이동하므로 로딩이 남지 않습니다.
+    router.replace(`/exam/${examId}/room`);
+  } catch (e:any) {
+    setErr(e.message ?? "입장 실패");
+    setLoading(false);
+  }
+}
+
+  // 스타일(큰 폰트 + 중앙 + CTA)
+  const S: Record<string, React.CSSProperties> = {
+    root: { minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center", background: "#f1f5f9", padding: 20 },
+    card: { width: "min(900px, 92vw)", background: "#fff", borderRadius: 20, boxShadow: "0 10px 30px rgba(0,0,0,0.12)", padding: 40, textAlign: "center" },
+    title: { fontSize: 46, fontWeight: 900, marginBottom: 18 },
+    row: { fontSize: 22, fontWeight: 700, margin: "10px 0" },
+    help: { marginTop: 10, fontSize: 20, color: "#475569" },
+    timer: { marginTop: 14, fontSize: 28, fontWeight: 900, letterSpacing: 1 },
+    status: { marginTop: 14, fontSize: 20, fontWeight: 800, color: inWindow ? "#065f46" : "#b91c1c" },
+    ctaWrap: { marginTop: 26 },
+    hint: { marginTop: 10, fontSize: 16, color: "#475569" },
+    err: { marginTop: 12, color: "#dc2626", fontSize: 18, fontWeight: 700 },
+  };
+
+  const ctaStyle = (enabled: boolean): React.CSSProperties => ({
+    fontSize: 22, fontWeight: 900, padding: "16px 28px",
+    borderRadius: 14, border: "none",
+    cursor: enabled ? "pointer" : "not-allowed",
+    background: enabled ? "#111827" : "#9ca3af", color: "#fff",
+    boxShadow: enabled ? "0 10px 20px rgba(0,0,0,0.15)" : "none",
+    opacity: enabled ? 1 : 0.9,
+    transition: "transform .05s ease",
+  });
+
+  const ctaTitle = inWindow
+    ? "입장 가능 시간입니다. 시험장으로 입장합니다."
+    : toOpenSec !== null && dayjs().isBefore(openAt!)
+      ? `입장 가능까지 ${formatRemain(toOpenSec)} 남음`
+      : "입장 시간이 마감되었습니다. (시험 시작 10분 전까지)";
+
+  return (
+    <main style={S.root}>
+      <section style={S.card}>
+        <h1 style={S.title}>시험 대기실</h1>
+
+        <p style={S.row}>시험 시작: {startAt ? startAt.format("YYYY-MM-DD HH:mm") : "—"}</p>
+
+        <p style={S.help}>입장 가능 시간은 <strong>시작 30분 전 ~ 10분 전</strong>입니다.</p>
+
+        <p style={S.timer}>시험 시작까지 남은 시간 : {formatRemain(toStartSec)}</p>
+
+        <p style={S.status}>
+          {inWindow ? "✅ 지금은 입장 가능 시간입니다." :
+            dayjs().isBefore(openAt ?? dayjs(0)) ? "⏳ 아직 입장 시간이 아닙니다." :
+            "❌ 입장 시간이 마감되었습니다."}
+        </p>
+
+        <div style={S.ctaWrap}>
+          <button
+            style={ctaStyle(inWindow && !loading)}
+            disabled={!inWindow || loading}
+            onClick={enterRoom}
+            title={ctaTitle}
+          >
+            {loading ? "입장 중..." : "시험장 입장하기"}
+          </button>
+          {!inWindow && (
+            <div style={S.hint}>
+              {dayjs().isBefore(openAt ?? dayjs(0)) && toOpenSec !== null
+                ? <>입장 가능까지 {formatRemain(toOpenSec)} 남았습니다.</>
+                : dayjs().isAfter(closeAt ?? dayjs(0)) && toCloseSec !== null
+                  ? <>입장 마감 시각까지 남은 시간: 00:00:00</> // 이미 마감
+                  : null}
+            </div>
+          )}
+        </div>
+
+        {err && <div style={S.err}>{err}</div>}
+      </section>
+    </main>
+  );
+}
