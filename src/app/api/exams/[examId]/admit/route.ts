@@ -1,7 +1,15 @@
 // app/api/exams/[examId]/admit/route.ts
 import { NextResponse } from "next/server";
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import { getExam } from "@/lib/api/exams";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const KST = "Asia/Seoul";
+const nowKST = () => dayjs().tz(KST);
 
 export async function POST(
   _req: Request,
@@ -10,24 +18,25 @@ export async function POST(
   const { examId } = await ctx.params;
   const exam = await getExam(examId);
 
-  // 시작 시각을 초 단위로 고정(경계 오차 줄이기)
-  const startAt = dayjs(exam.startsAtISO).second(0).millisecond(0);
+  // ⚠️ 클라와 동일 시간대(KST)로 통일. 초 스냅 제거(권장).
+  const startAt = dayjs(exam.startsAtISO); // .second(0).millisecond(0) 하지 않음
   const openAt  = startAt.subtract(exam.lobbyOpenOffsetMin ?? 30, "minute");
   const closeAt = startAt.subtract(exam.lobbyCloseOffsetMin ?? 10, "minute");
 
-  const now = dayjs();
-  const OPEN_GRACE_SEC = 3;    // ← 오픈 3초 일찍도 허용
-  const CLOSE_GRACE_SEC = 0;   // ← 마감은 엄격(필요하면 1~2초 줄 수 있음)
+  const now = nowKST();
 
-  const afterOpen   = !now.isBefore(openAt.subtract(OPEN_GRACE_SEC, "second"));      // now >= openAt - 3s
-  const beforeClose = now.isBefore(closeAt.add(CLOSE_GRACE_SEC, "second"));          // now <  closeAt
+  // 경계 흔들림 방지용 여유(선택)
+  const OPEN_GRACE_SEC = 1;   // 살짝만 여유
+  const CLOSE_GRACE_SEC = 0;
+
+  const afterOpen   = !now.isBefore(openAt.subtract(OPEN_GRACE_SEC, "second"));
+  const beforeClose =  now.isBefore(closeAt.add(CLOSE_GRACE_SEC, "second"));
 
   if (!(afterOpen && beforeClose)) {
     const res = new NextResponse("Not in admission window", { status: 403 });
-    // 디버깅 도움되는 헤더
-    res.headers.set("x-open-at", openAt.toISOString());
-    res.headers.set("x-close-at", closeAt.toISOString());
-    res.headers.set("x-now", now.toISOString());
+    res.headers.set("x-open-at", openAt.format("YYYY-MM-DD HH:mm:ss"));
+    res.headers.set("x-close-at", closeAt.format("YYYY-MM-DD HH:mm:ss"));
+    res.headers.set("x-now", now.format("YYYY-MM-DD HH:mm:ss"));
     return res;
   }
 
@@ -36,7 +45,7 @@ export async function POST(
   res.cookies.set(`admit_exam_${examId}`, "1", {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production", // dev(local)면 false
+    secure: process.env.NODE_ENV === "production",
     path: "/",
     expires: endAt.add(10, "minute").toDate(),
   });

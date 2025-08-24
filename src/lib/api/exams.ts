@@ -21,14 +21,14 @@ const EXAM_STORE = globalThis.__EXAM_STORE__ ?? (globalThis.__EXAM_STORE__ = new
 export async function getExam(examId: string): Promise<Exam> {
   let ex = EXAM_STORE.get(examId);
   if (!ex) {
-    const startsAt = dayjs().add(31, "minute").second(0).millisecond(0); // 테스트 값
+    const startsAt = dayjs().add(15, "second").millisecond(0); // 테스트 값
     ex = {
       id: examId,
-      title: "알고리즘 코딩테스트",
+      title: "AI역량 테스트",
       startsAtISO: startsAt.toISOString(),
-      durationMin: 120,
-      lobbyOpenOffsetMin: 30,
-      lobbyCloseOffsetMin: 10,
+      durationMin: 30,
+      lobbyOpenOffsetMin: 2,
+      lobbyCloseOffsetMin: 0,
     };
     EXAM_STORE.set(examId, ex);
   }
