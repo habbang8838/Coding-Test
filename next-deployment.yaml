@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: next-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: next-app
+  template:
+    metadata:
+      labels:
+        app: next-app
+    spec:
+      containers:
+        - name: next-app
+          image: YOUR_ID/next-app:latest   # Docker Hub 이미지
+          ports:
+            - containerPort: 3000
+          env:
+            - name: DATABASE_URL
+              value: "mysql://nextuser:nextpass@mysql-service:3306/coding_test"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: next-app-service
+spec:
+  selector:
+    app: next-app
+  ports:
+    - port: 80
+      targetPort: 3000
+  type: ClusterIP

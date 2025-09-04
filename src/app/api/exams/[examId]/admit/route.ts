@@ -11,17 +11,16 @@ dayjs.extend(timezone);
 const KST = "Asia/Seoul";
 const nowKST = () => dayjs().tz(KST);
 
-export async function POST(
-  _req: Request,
-  ctx: { params: Promise<{ examId: string }> }
-) {
-  const { examId } = await ctx.params;
+export async function POST(req:Request){
+  const url = new URL(req.url);
+  const segments = url.pathname.split("/");
+  const examId = segments[segments.indexOf("exams") + 1];
   const exam = await getExam(examId);
 
   // ⚠️ 클라와 동일 시간대(KST)로 통일. 초 스냅 제거(권장).
   const startAt = dayjs(exam.startsAtISO); // .second(0).millisecond(0) 하지 않음
-  const openAt  = startAt.subtract(exam.lobbyOpenOffsetMin ?? 30, "minute");
-  const closeAt = startAt.subtract(exam.lobbyCloseOffsetMin ?? 10, "minute");
+  const openAt  = startAt.subtract(exam.lobbyOpenOffsetMin ?? 2, "minute");
+  const closeAt = startAt.subtract(exam.lobbyCloseOffsetMin ?? 1, "minute");
 
   const now = nowKST();
 

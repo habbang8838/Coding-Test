@@ -1,5 +1,3 @@
-"use client";
-
 import RoomClient from "./room.client";
 import { getExam } from "@/lib/api/exams";
 

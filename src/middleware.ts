@@ -2,12 +2,20 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(req: NextRequest) {
-  const isLoggedIn = req.cookies.get("auth")?.value === "1"; // ✅ 쿠키 체크
+  const isLoggedIn = req.cookies.get("auth")?.value === "1";
 
+  const { pathname } = req.nextUrl;
+
+  // ✅ API 요청은 미들웨어 통과
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
+
+  // ✅ 로그인/회원가입 페이지는 예외
   if (
     !isLoggedIn &&
-    !req.nextUrl.pathname.startsWith("/login") &&
-    !req.nextUrl.pathname.startsWith("/signup")
+    !pathname.startsWith("/login") &&
+    !pathname.startsWith("/signup")
   ) {
     return NextResponse.redirect(new URL("/login", req.url));
   }

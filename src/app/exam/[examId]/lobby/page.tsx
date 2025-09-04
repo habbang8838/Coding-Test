@@ -86,17 +86,17 @@ return candOpen.isBefore(candClose)
   const toOpenSec  = useCountdown(openAt);
   const toCloseSec = useCountdown(closeAt);
 
-  // ✅ phase: 초 단위 스냅으로 비교 → 30:00 아래로 내려가는 즉시 open
+  // ✅ phase: 초 단위 스냅으로 비교 → 20:00 아래로 내려가는 즉시 open
   const phase = useMemo<"loading" | "before" | "open" | "closed">(() => {
     if (toStartSec === null) return "loading";
 
     if (toStartSec >= openMin * 60) {
-      return "before";   // 아직 30분 이상 남음
+      return "before";   // 아직 20분 이상 남음
     }
     if (toStartSec > closeMin * 60) {
-      return "open";     // 30분 미만 ~ 10분 초과
+      return "open";     // 20분 미만 ~ 5분 초과
     }
-    return "closed";     // 10분 이하
+    return "closed";     // 5분 이하
   }, [toStartSec, openMin, closeMin]);
 
   const inWindow = phase === "open";
@@ -157,7 +157,7 @@ return candOpen.isBefore(candClose)
       ? "입장 가능 시간입니다. 시험장으로 입장합니다."
       : phase === "before" && toOpenSec !== null
         ? `입장 가능까지 ${formatRemain(toOpenSec)} 남음`
-        : "입장 시간이 마감되었습니다. (시험 시작 10분 전까지)";
+        : "입장 시간이 마감되었습니다. (시험 시작 5분 전까지)";
 
   return (
     <main style={S.root}>
@@ -165,7 +165,7 @@ return candOpen.isBefore(candClose)
         <h1 style={S.title}>시험 대기실</h1>
 
         <p style={S.row}>시험 시작: {startAt ? startAt.format("YYYY-MM-DD HH:mm") : "—"}</p>
-        <p style={S.help}>입장 가능 시간은 <strong>시작 30분 전 ~ 10분 전</strong>입니다.</p>
+        <p style={S.help}>입장 가능 시간은 <strong>시작 20분 전 ~ 5분 전</strong>입니다.</p>
         <p style={S.timer}>시험 시작까지 남은 시간 : {formatRemain(toStartSec)}</p>
 
         <p style={S.status}>

@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 
 // 한국 시간 기준 YYYY-MM-DD
 function formatDate(d: Date) {
-  const offset = d.getTimezoneOffset() * 60000; // 분 → ms
-  const local = new Date(d.getTime() - offset); // 한국시간 보정
+  const offset = d.getTimezoneOffset() * 60000;
+  const local = new Date(d.getTime() - offset);
   return local.toISOString().split("T")[0];
 }
 
@@ -15,20 +15,20 @@ export default function SignupPage() {
 
   const today = new Date();
   const defaultBirth = new Date(today);
-  defaultBirth.setFullYear(today.getFullYear() - 25); // 25년 전
+  defaultBirth.setFullYear(today.getFullYear() - 25);
 
   const minBirth = new Date(today);
-  minBirth.setFullYear(today.getFullYear() - 90); // 90년 전
+  minBirth.setFullYear(today.getFullYear() - 90);
 
   const maxBirth = new Date(today);
-  maxBirth.setFullYear(today.getFullYear() - 10); // 10년 전
+  maxBirth.setFullYear(today.getFullYear() - 10);
 
   const [form, setForm] = useState({
     email: "",
     password: "",
     confirm: "",
     name: "홍길동",
-    birth: formatDate(defaultBirth), // ✅ 한국시간 기준
+    birth: formatDate(defaultBirth),
   });
   const [err, setErr] = useState("");
 
@@ -38,37 +38,64 @@ export default function SignupPage() {
 
   const validate = () => {
     if (!/^[\w-.]+@[\w-]+\.[a-z]{2,}$/.test(form.email)) {
-      return "올바른 이메일을 입력하세요.";
+      return "올바른 이메일 형식을 입력해주세요. (예: example@email.com)";
     }
     if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,12}$/.test(form.password)) {
       return "비밀번호는 영문+숫자 조합 6~12자여야 합니다.";
     }
     if (form.password !== form.confirm) {
-      return "비밀번호 확인이 일치하지 않습니다.";
+      return "비밀번호 확인이 일치하지 않습니다. 다시 입력해주세요.";
     }
     return "";
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const v = validate();
-    if (v) return setErr(v);
+    if (v) {
+      setErr(v);
+      alert(v); // 규칙 위반 시 경고창
+      return;
+    }
 
-    alert("회원가입 완료!");
-    router.push("/login");
+    try {
+      const res = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+          name: form.name,
+          birth: form.birth,
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        setErr(data.error || "회원가입 실패");
+        alert(data.error || "회원가입 실패");
+        return;
+      }
+
+      alert("회원가입 완료!");
+      router.push("/login");
+    } catch (err) {
+      setErr("서버 오류가 발생했습니다.");
+      alert("서버 오류가 발생했습니다. 다시 시도해주세요.");
+    }
   };
 
   return (
-    <main className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-100 to-indigo-200">
+    <main className="flex min-h-screen items-center justify-center bg-gray-100">
       <form
         onSubmit={handleSubmit}
-        className="bg-white p-8 rounded-xl shadow-lg w-full max-w-xs"
+        className="w-full max-w-[420px] rounded-xl bg-white p-8 shadow-lg"
       >
-        <h1 className="text-2xl font-extrabold mb-6 text-center text-indigo-600">
+        <h1 className="mb-6 text-center text-2xl font-extrabold text-indigo-600">
           회원가입
         </h1>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium">이메일</label>
             <input
@@ -76,7 +103,7 @@ export default function SignupPage() {
               name="email"
               value={form.email}
               onChange={handleChange}
-              className="w-full border p-2 rounded mt-1 focus:ring-2 focus:ring-indigo-400 outline-none text-sm"
+              className="mt-1 w-full rounded-md border p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-400"
               placeholder="example@email.com"
               required
             />
@@ -89,7 +116,7 @@ export default function SignupPage() {
               name="password"
               value={form.password}
               onChange={handleChange}
-              className="w-full border p-2 rounded mt-1 focus:ring-2 focus:ring-indigo-400 outline-none text-sm"
+              className="mt-1 w-full rounded-md border p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-400"
               placeholder="6~12자 영문+숫자"
               required
             />
@@ -102,7 +129,7 @@ export default function SignupPage() {
               name="confirm"
               value={form.confirm}
               onChange={handleChange}
-              className="w-full border p-2 rounded mt-1 focus:ring-2 focus:ring-indigo-400 outline-none text-sm"
+              className="mt-1 w-full rounded-md border p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-400"
               placeholder="비밀번호 재입력"
               required
             />
@@ -115,7 +142,7 @@ export default function SignupPage() {
               name="name"
               value={form.name}
               onChange={handleChange}
-              className="w-full border p-2 rounded mt-1 focus:ring-2 focus:ring-indigo-400 outline-none text-sm"
+              className="mt-1 w-full rounded-md border p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-400"
             />
           </div>
 
@@ -128,16 +155,16 @@ export default function SignupPage() {
               onChange={handleChange}
               min={formatDate(minBirth)}
               max={formatDate(maxBirth)}
-              className="w-full border p-2 rounded mt-1 focus:ring-2 focus:ring-indigo-400 outline-none text-sm"
+              className="mt-1 w-full rounded-md border p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-400"
             />
           </div>
         </div>
 
-        {err && <p className="text-red-600 text-sm mt-3">{err}</p>}
+        {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
 
         <button
           type="submit"
-          className="w-full bg-indigo-600 text-white py-2 rounded-lg mt-5 font-bold hover:bg-indigo-700 transition text-sm"
+          className="mt-5 w-full rounded-lg bg-indigo-600 py-2 font-bold text-white transition hover:bg-indigo-700 text-sm"
         >
           회원가입
         </button>

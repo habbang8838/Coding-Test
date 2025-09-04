@@ -21,7 +21,7 @@ const EXAM_STORE = globalThis.__EXAM_STORE__ ?? (globalThis.__EXAM_STORE__ = new
 export async function getExam(examId: string): Promise<Exam> {
   let ex = EXAM_STORE.get(examId);
   if (!ex) {
-    const startsAt = dayjs().add(15, "second").millisecond(0); // 테스트 값
+    const startsAt = dayjs().add(130, "second").millisecond(0); // 테스트 값
     ex = {
       id: examId,
       title: "AI역량 테스트",

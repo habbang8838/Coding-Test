@@ -2,17 +2,42 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import dayjs from "dayjs";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
+  const [err, setErr] = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // ✅ 로그인 성공 가정
-    localStorage.setItem("loggedIn", "true");
-    router.push("/");
+
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: pw }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        setErr(data.error || "로그인 실패");
+        alert(data.error || "로그인 실패");
+        return;
+      }
+
+      // ✅ 로그인 성공 → 시험 ID 생성 후 이동
+      const yyyymm = dayjs().format("YYYYMM");
+      const examId = `coding_test_${yyyymm}`;
+
+      router.push(`/exam/${examId}/lobby`);
+    } catch (error) {
+      console.error("로그인 요청 오류:", error);
+      setErr("서버 오류 발생");
+      alert("서버 오류가 발생했습니다. 다시 시도해주세요.");
+    }
   };
 
   return (
@@ -29,16 +54,14 @@ export default function LoginPage() {
         onSubmit={handleLogin}
         style={{
           width: "100%",
-          maxWidth: 400, // ✅ 날씬하게
+          maxWidth: 400,
           background: "#fff",
           padding: "30px 24px",
           borderRadius: 12,
           boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
         }}
       >
-        <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 20 }}>
-          로그인
-        </h1>
+        <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 20 }}>로그인</h1>
 
         <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>
           이메일
@@ -74,6 +97,10 @@ export default function LoginPage() {
           required
         />
 
+        {err && (
+          <p style={{ color: "red", fontSize: 14, marginBottom: 10 }}>{err}</p>
+        )}
+
         {/* 버튼 줄 */}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
           <button
@@ -92,7 +119,7 @@ export default function LoginPage() {
           </button>
           <button
             type="button"
-            onClick={() => router.push("/signup")}   // ✅ 여기 /register → /signup 으로 변경
+            onClick={() => router.push("/signup")}
             style={{
               padding: "8px 16px",
               border: "1px solid #2563eb",
