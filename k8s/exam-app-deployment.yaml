@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: exam-app
+  labels:
+    app: exam-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: exam-app
+  template:
+    metadata:
+      labels:
+        app: exam-app
+    spec:
+      containers:
+        - name: exam-app 
+          image: habbang8838/exam-app:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3000"
+            - name: DB_HOST
+              value: mysql-service
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: mysql-config
+                  key: MYSQL_DATABASE
+            - name: DB_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: mysql-config
+                  key: MYSQL_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: MYSQL_PASSWORD
+            - name: DATABASE_URL
+              value: "mysql://nextuser:qkrwltn0494!@mysql-service:3306/coding_test?sslaccept=skip"
+            - name: NEXT_PUBLIC_API_URL
+              value: "http://exam.local/api"
+
+              

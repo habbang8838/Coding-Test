@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  labels:
+    app: mysql
+spec:
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: MYSQL_PASSWORD
+            - name: MYSQL_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: mysql-config
+                  key: MYSQL_DATABASE
+            - name: MYSQL_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: mysql-config
+                  key: MYSQL_USER
+          volumeMounts:
+            - name: mysql-storage
+              mountPath: /var/lib/mysql
+            # 선택) 아래 두 개는 my.cnf/init.sql 사용 시에만 필요
+            #- name: init-sql
+            #  mountPath: /docker-entrypoint-initdb.d
+            #  readOnly: true
+            #- name: my-cnf
+            #  mountPath: /etc/mysql/conf.d
+            #  readOnly: true
+      volumes:
+        - name: mysql-storage
+          persistentVolumeClaim:
+            claimName: mysql-pvc
+        # 선택) 위의 선택 섹션을 쓸 때만 활성화
+        #- name: init-sql
+          #configMap:
+            #name: mysql-config
+            #items:
+              #- key: init.sql
+              #  path: init.sql
+        #- name: my-cnf
+        #  configMap:
+        #    name: mysql-config
+        #    items:
+        #      - key: my.cnf
+        #        path: my.cnf

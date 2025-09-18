@@ -1,0 +1,40 @@
+# 1. Build 단계
+FROM node:20-slim AS builder
+WORKDIR /app
+
+# 빌드에 필요한 패키지 설치
+RUN apt-get update && apt-get install -y python3 make g++ libc6-dev libgcc-s1 openssl \
+  && rm -rf /var/lib/apt/lists/*
+
+# package.json 복사 및 패키지 설치
+COPY package*.json ./
+RUN npm ci
+
+# 소스 코드 복사
+COPY . .
+
+# Next.js 빌드
+RUN npm run build
+
+# Prisma Client (Linux 환경) 재생성
+RUN npx prisma generate --schema=prisma/schema.prisma
+
+# 2. Run 단계
+FROM node:20-slim AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# 런타임에 필요한 openssl 설치
+RUN apt-get update && apt-get install -y openssl \
+  && rm -rf /var/lib/apt/lists/*
+
+# 실행에 필요한 파일 복사
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/prisma ./prisma
+
+EXPOSE 3000
+CMD ["npm", "start"]
